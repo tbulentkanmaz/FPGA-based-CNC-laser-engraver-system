@@ -1,0 +1,1399 @@
+
+library IEEE;
+
+use IEEE.STD_LOGIC_1164.ALL;
+
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+use IEEE.NUMERIC_STD.ALL;
+
+ 
+
+entity VGA is
+
+    Port ( right: in std_logic;
+    
+            left: in std_logic;
+            
+            up: in std_logic;
+            
+            down: in std_logic;
+            
+            red_screen: in std_logic;
+    
+          clock : in std_logic;
+    
+          vgaRed : out std_logic_vector (3 downto 0);
+
+          vgaGreen : out std_logic_vector (3 downto 0);
+
+          vgaBlue : out std_logic_vector (3 downto 0);
+
+          Hsync : out std_logic;
+
+          Vsync : out std_logic;
+          
+          xdata1: in integer;
+          
+          xdata2: in integer;
+          
+          xdata3: in integer;
+          
+          xdata4: in integer;
+          
+          ydata1: in integer;
+          
+          ydata2: in integer;
+          
+          ydata3: in integer;
+
+          ydata4: in integer
+          
+          );
+          
+          
+
+
+end VGA;
+
+ 
+
+architecture Behavioral of VGA is
+
+ 
+
+--horizontal constants
+
+constant hdisp : integer := 1440;
+
+constant hfp : integer := 80;
+
+constant hbp : integer := 232;
+
+constant hsp : integer := 152;
+
+ 
+signal red_counter: integer range 0 to 100000000 := 0;
+
+--vertical constants
+
+constant vdisp : integer := 900;
+
+constant vfp : integer := 1;
+
+constant vbp : integer := 28;
+
+constant vsp : integer := 3;
+
+ 
+--horizontal and vertical VGA
+
+
+signal hz : integer := 0;
+
+signal vt : integer := 0;
+
+signal h_disp : boolean := false;
+
+signal v_disp : boolean := false;
+
+ -- ------------------------------ Numbers
+ constant fon_ar_siz : integer := 11;
+  type font is array (11 downto 0) of  std_logic_vector(7 downto 0);
+  type fontarray is array (fon_ar_siz downto 0) of font;
+  constant fonts: fontarray := (("01111110", "10000001",  "10000001",  "10000001",  "10000001",  "10000001",  "10000001",
+            "10000001",  "10000001",  "10000001",  "10000001",  "01111110"),
+            ("00010000","00010000","00010000","00010000","00010000","00010000","00010000","00010000","00010000","00010000",
+            "00010000","00010000"),
+            ("00011100","00100100","01000010","10000001","00000010","00000100","00000100","00010000","00100000","01000000",
+            "01000000","11111111"),
+            ("00011100","01000010","10000001","00000001","00000001","00111110","00000100","00000010","00000001","00000001",
+            "01000001","00111100"),
+            ("00000001","00000011","00000101","00010001","00100001","11111111","00000001","00000001","00000001","00000001",
+            "00000001","00000001"),
+            ("11111111","10000000","10000000","10000000","10000000","11111100","00000010","00000001","00000001","00000001",
+            "00000110","11110000"),
+            ("00000111","00001000","00100000","01000000","10000000","10001100","10100001","11000001","10000001","01000001",
+            "01000010","00011100"),
+            ("11111111","00000010","00000010","00000100","00000100","00001000","00010000","00100000","00100000","01000000",
+            "01000000","10000000"),
+            ("00111100","01000010","10000001","10000001","01000010","00001000","00100100","10000001","10000001","10000001",
+            "01000010","00111100"),
+            ("00111110","01000001","10000001","10000001","00100001","00011110","00000001","00000001","00000010","00000010",
+            "00011000","11000000"),
+            ("00000000","10001000","10001000","01010000","01010011","00100011","00100000","01010011","01010011","10001000",
+            "10001000","00000000"),
+            ("00000000","10001000","10001000","01010000","01010011","00100011","00100000","00100011","00100011","00100000",
+            "00100000","00100000"));
+
+
+  
+  constant ypos:  integer :=800;
+  constant xpos1: integer :=540;
+  constant xpos2: integer :=563;
+  constant xpos3: integer :=585;
+  constant xpos4: integer :=608;
+  constant xpos5: integer :=823;
+  constant xpos6: integer :=850;
+  constant xpos7: integer :=878;
+  constant xpos8: integer :=900;
+
+
+
+
+ -- ------------------------------ Numbers
+ 
+ 
+ 
+
+type Bulentarray is array(0 to 899) of std_logic_vector(0 to 899);
+
+ 
+constant Bulent : Bulentarray:= (
+"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+
+.....
+
+.....
+
+
+.....
+"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+
+begin 
+
+
+--process( security)
+--begin
+--if security = '0' then
+--    if red_counter <=5000000 then
+--    
+--    else
+--    
+--    end if;
+--end if;
+--
+--end process;
+
+red_counter_increment:
+ process (clock) 
+begin
+if rising_edge(clock) then    
+    if red_counter = 100000000 then
+        red_counter <= 0;
+    else
+        red_counter <= red_counter +1;
+   end if;
+end if;    
+
+end process;
+
+
+
+
+
+
+
+
+
+process(clock, hz, vt)
+begin 
+
+if rising_edge(clock) then
+
+    if red_screen = '1' then
+         if red_counter <=5000000 then
+                if (hz > 0 and hz < 1440 and vt > 0 and vt < 900 ) then
+
+                         vgaRed <= "1111";
+
+                         vgaGreen <= "0000";
+
+                         vgaBlue <= "0000";
+                         
+                 else       
+                         vgaRed <= "0000";
+                         vgaGreen <= "0000";
+                         vgaBlue <= "0000";
+                         
+                         
+                 end if;        
+         else
+                     vgaRed <= "0000";
+                     vgaGreen <= "0000";
+                     vgaBlue <= "0000";
+         
+                     --if (hz > 0 and hz < 1440 and vt > 0 and vt < 900 ) then
+                     --
+                     --    vgaRed <= "0000";
+                     --
+                     --    vgaGreen <= "0000";
+                     --
+                     --    vgaBlue <= "0000";
+         
+           end if;
+    else
+                      
+        if right = '1' then
+          if (hz > 270 and hz < 1170 and vt > 0 and vt < 900 and Bulent(vt-0)(hz-270) = '1') then
+
+            vgaRed <= "1001";
+
+            vgaGreen <= "0110";
+
+            vgaBlue <= "1111";
+            
+          elsif vt >= ypos and vt < ypos +12 then 
+            if  hz >= xpos1  and hz < xpos1 +8 then
+                if fonts(fon_ar_siz- xdata1)(11-vt+ypos)(7-hz+xpos1)= '1'  then
+                  vgaRed <= "1111";
+    
+                  vgaGreen <= "1111";
+    
+                  vgaBlue <= "1111";
+                  
+                else   
+                  
+                  vgaRed <= "0000";
+     
+                  vgaGreen <= "0000";
+    
+                  vgaBlue <= "0000";
+               end if;   
+               
+    
+            elsif  hz >= xpos2  and hz < xpos2 +8 then
+                 if fonts(fon_ar_siz- xdata2)(11-vt+ypos)(7-hz+xpos2)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;
+                
+            elsif  hz >= xpos3  and hz < xpos3 +8 then
+                 if fonts(fon_ar_siz- xdata3)(11-vt+ypos)(7-hz+xpos3)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos4  and hz < xpos4 +8 then
+                 if fonts(fon_ar_siz- xdata4)(11-vt+ypos)(7-hz+xpos4)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos5  and hz < xpos5 +8 then
+                 if fonts(fon_ar_siz- ydata1)(11-vt+ypos)(7-hz+xpos5)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;               
+                
+            elsif  hz >= xpos6  and hz < xpos6 +8 then
+                 if fonts(fon_ar_siz- ydata2)(11-vt+ypos)(7-hz+xpos6)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                     
+            elsif  hz >= xpos7  and hz < xpos7 +8 then
+                 if fonts(fon_ar_siz- ydata3)(11-vt+ypos)(7-hz+xpos7)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                    
+            elsif  hz >= xpos8  and hz < xpos8 +8 then
+                 if fonts(fon_ar_siz- ydata4)(11-vt+ypos)(7-hz+xpos8)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                
+            else
+                vgaRed <= "0000";
+    
+                vgaGreen <= "0000";
+    
+                vgaBlue <= "0000";
+            end if;
+            
+        else
+            vgaRed <= "0000";
+
+            vgaGreen <= "0000";
+
+            vgaBlue <= "0000";
+    end if;
+    
+    
+    ------------------------
+    
+    
+    
+    
+    elsif left = '1' then
+        if (hz > 270 and hz < 1170 and vt > 0 and vt < 900 and Bulent(vt-0)(900-(hz-270)) = '1') then
+
+            vgaRed <= "1001";
+
+            vgaGreen <= "0110";
+
+            vgaBlue <= "1111";
+            
+        elsif vt >= ypos and vt < ypos +12 then 
+            if  hz >= xpos1  and hz < xpos1 +8 then
+                if fonts(fon_ar_siz- xdata1)(11-vt+ypos)(7-hz+xpos1)= '1'  then
+                  vgaRed <= "1111";
+    
+                  vgaGreen <= "1111";
+    
+                  vgaBlue <= "1111";
+                  
+                else   
+                  
+                  vgaRed <= "0000";
+     
+                  vgaGreen <= "0000";
+    
+                  vgaBlue <= "0000";
+               end if;   
+               
+    
+            elsif  hz >= xpos2  and hz < xpos2 +8 then
+                 if fonts(fon_ar_siz- xdata2)(11-vt+ypos)(7-hz+xpos2)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;
+                
+            elsif  hz >= xpos3  and hz < xpos3 +8 then
+                 if fonts(fon_ar_siz- xdata3)(11-vt+ypos)(7-hz+xpos3)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos4  and hz < xpos4 +8 then
+                 if fonts(fon_ar_siz- xdata4)(11-vt+ypos)(7-hz+xpos4)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos5  and hz < xpos5 +8 then
+                 if fonts(fon_ar_siz- ydata1)(11-vt+ypos)(7-hz+xpos5)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;               
+                
+            elsif  hz >= xpos6  and hz < xpos6 +8 then
+                 if fonts(fon_ar_siz- ydata2)(11-vt+ypos)(7-hz+xpos6)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                     
+            elsif  hz >= xpos7  and hz < xpos7 +8 then
+                 if fonts(fon_ar_siz- ydata3)(11-vt+ypos)(7-hz+xpos7)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                    
+            elsif  hz >= xpos8  and hz < xpos8 +8 then
+                 if fonts(fon_ar_siz- ydata4)(11-vt+ypos)(7-hz+xpos8)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                
+            else
+                vgaRed <= "0000";
+    
+                vgaGreen <= "0000";
+    
+                vgaBlue <= "0000";
+            end if;
+            
+        else
+            vgaRed <= "0000";
+
+            vgaGreen <= "0000";
+
+            vgaBlue <= "0000";
+    end if;
+
+
+
+
+
+------------------
+    elsif down = '1' then
+        if (hz > 270 and hz < 1170 and vt > 0 and vt < 900 and Bulent(hz-270)(vt-0) = '1') then
+
+            vgaRed <= "1001";
+
+            vgaGreen <= "0110";
+
+            vgaBlue <= "1111";
+            
+        elsif vt >= ypos and vt < ypos +12 then 
+            if  hz >= xpos1  and hz < xpos1 +8 then
+                if fonts(fon_ar_siz- xdata1)(11-vt+ypos)(7-hz+xpos1)= '1'  then
+                  vgaRed <= "1111";
+    
+                  vgaGreen <= "1111";
+    
+                  vgaBlue <= "1111";
+                  
+                else   
+                  
+                  vgaRed <= "0000";
+     
+                  vgaGreen <= "0000";
+    
+                  vgaBlue <= "0000";
+               end if;   
+               
+    
+            elsif  hz >= xpos2  and hz < xpos2 +8 then
+                 if fonts(fon_ar_siz- xdata2)(11-vt+ypos)(7-hz+xpos2)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;
+                
+            elsif  hz >= xpos3  and hz < xpos3 +8 then
+                 if fonts(fon_ar_siz- xdata3)(11-vt+ypos)(7-hz+xpos3)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos4  and hz < xpos4 +8 then
+                 if fonts(fon_ar_siz- xdata4)(11-vt+ypos)(7-hz+xpos4)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos5  and hz < xpos5 +8 then
+                 if fonts(fon_ar_siz- ydata1)(11-vt+ypos)(7-hz+xpos5)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;               
+                
+            elsif  hz >= xpos6  and hz < xpos6 +8 then
+                 if fonts(fon_ar_siz- ydata2)(11-vt+ypos)(7-hz+xpos6)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                     
+            elsif  hz >= xpos7  and hz < xpos7 +8 then
+                 if fonts(fon_ar_siz- ydata3)(11-vt+ypos)(7-hz+xpos7)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                    
+            elsif  hz >= xpos8  and hz < xpos8 +8 then
+                 if fonts(fon_ar_siz- ydata4)(11-vt+ypos)(7-hz+xpos8)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                
+            else
+                vgaRed <= "0000";
+    
+                vgaGreen <= "0000";
+    
+                vgaBlue <= "0000";
+            end if;
+            
+        else
+            vgaRed <= "0000";
+
+            vgaGreen <= "0000";
+
+            vgaBlue <= "0000";
+    end if; 
+   --------------------
+   
+    elsif up = '1' then
+        if (hz > 270 and hz < 1170 and vt > 0 and vt < 900 and Bulent(900-(hz-270))(900-(vt-0)) = '1') then
+
+            vgaRed <= "1001";
+
+            vgaGreen <= "0110";
+
+            vgaBlue <= "1111";
+            
+        elsif vt >= ypos and vt < ypos +12 then 
+            if  hz >= xpos1  and hz < xpos1 +8 then
+                if fonts(fon_ar_siz- xdata1)(11-vt+ypos)(7-hz+xpos1)= '1'  then
+                  vgaRed <= "1111";
+    
+                  vgaGreen <= "1111";
+    
+                  vgaBlue <= "1111";
+                  
+                else   
+                  
+                  vgaRed <= "0000";
+     
+                  vgaGreen <= "0000";
+    
+                  vgaBlue <= "0000";
+               end if;   
+               
+    
+            elsif  hz >= xpos2  and hz < xpos2 +8 then
+                 if fonts(fon_ar_siz- xdata2)(11-vt+ypos)(7-hz+xpos2)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;
+                
+            elsif  hz >= xpos3  and hz < xpos3 +8 then
+                 if fonts(fon_ar_siz- xdata3)(11-vt+ypos)(7-hz+xpos3)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos4  and hz < xpos4 +8 then
+                 if fonts(fon_ar_siz- xdata4)(11-vt+ypos)(7-hz+xpos4)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos5  and hz < xpos5 +8 then
+                 if fonts(fon_ar_siz- ydata1)(11-vt+ypos)(7-hz+xpos5)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;               
+                
+            elsif  hz >= xpos6  and hz < xpos6 +8 then
+                 if fonts(fon_ar_siz- ydata2)(11-vt+ypos)(7-hz+xpos6)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                     
+            elsif  hz >= xpos7  and hz < xpos7 +8 then
+                 if fonts(fon_ar_siz- ydata3)(11-vt+ypos)(7-hz+xpos7)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                    
+            elsif  hz >= xpos8  and hz < xpos8 +8 then
+                 if fonts(fon_ar_siz- ydata4)(11-vt+ypos)(7-hz+xpos8)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                
+            else
+                vgaRed <= "0000";
+    
+                vgaGreen <= "0000";
+    
+                vgaBlue <= "0000";
+            end if;
+            
+        else
+            vgaRed <= "0000";
+
+            vgaGreen <= "0000";
+
+            vgaBlue <= "0000";
+    end if;
+   
+   
+   ------------------------
+    else
+     if vt >= ypos and vt < ypos +12 then 
+            if  hz >= xpos1  and hz < xpos1 +8 then
+                if fonts(fon_ar_siz- xdata1)(11-vt+ypos)(7-hz+xpos1)= '1'  then
+                  vgaRed <= "1111";
+    
+                  vgaGreen <= "1111";
+    
+                  vgaBlue <= "1111";
+                  
+                else   
+                  
+                  vgaRed <= "0000";
+     
+                  vgaGreen <= "0000";
+    
+                  vgaBlue <= "0000";
+               end if;   
+               
+    
+            elsif  hz >= xpos2  and hz < xpos2 +8 then
+                 if fonts(fon_ar_siz- xdata2)(11-vt+ypos)(7-hz+xpos2)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;
+                
+            elsif  hz >= xpos3  and hz < xpos3 +8 then
+                 if fonts(fon_ar_siz- xdata3)(11-vt+ypos)(7-hz+xpos3)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos4  and hz < xpos4 +8 then
+                 if fonts(fon_ar_siz- xdata4)(11-vt+ypos)(7-hz+xpos4)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;    
+                
+            elsif  hz >= xpos5  and hz < xpos5 +8 then
+                 if fonts(fon_ar_siz- ydata1)(11-vt+ypos)(7-hz+xpos5)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;               
+                
+            elsif  hz >= xpos6  and hz < xpos6 +8 then
+                 if fonts(definedcharacters- ydata2)(11-vt+ypos)(7-hz+xpos6)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                     
+            elsif  hz >= xpos7  and hz < xpos7 +8 then
+                 if letters(definedcharacters- ydata3)(11-vt+ypos)(7-hz+xpos7)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                    
+            elsif  hz >= xpos8  and hz < xpos8 +8 then
+                 if letters(definedcharacters- ydata4)(11-vt+ypos)(7-hz+xpos8)= '1'  then
+                     vgaRed <= "1111";
+    
+                     vgaGreen <= "1111";
+    
+                     vgaBlue <= "1111";
+                  
+                 else   
+                  
+                      vgaRed <= "0000";
+     
+                     vgaGreen <= "0000";
+    
+                      vgaBlue <= "0000";    
+                 
+                end if;                
+            else
+                vgaRed <= "0000";
+    
+                vgaGreen <= "0000";
+    
+                vgaBlue <= "0000";
+            end if;
+            
+        else
+            vgaRed <= "0000";
+
+            vgaGreen <= "0000";
+
+            vgaBlue <= "0000";
+    
+    end if;
+    
+    end if;
+    end if;
+    end if;
+end process; 
+
+
+--process(clock)
+--begin
+--if rising_edge( clock) then
+--    if vt >= ypos and vt < ypos +12 then 
+--        if  hz >= xpos1  and hz < xpos1 +8 then
+--            if letters(definedcharacters- xdata1)(11-vt+ypos)(7-hz+xpos1)= '1'  then
+--              vgaRed <= "1111";
+--
+--              vgaGreen <= "1111";
+--
+--              vgaBlue <= "1111";
+--              
+--            else   
+--              
+--              vgaRed <= "0000";
+-- 
+--              vgaGreen <= "0000";
+--
+--              vgaBlue <= "0000";
+--           end if;   
+--           
+--
+--        elsif  hz >= xpos2  and hz < xpos2 +8 then
+--             if letters(definedcharacters- xdata2)(11-vt+ypos)(7-hz+xpos2)= '1'  then
+--                 vgaRed <= "1111";
+--
+--                 vgaGreen <= "1111";
+--
+--                 vgaBlue <= "1111";
+--              
+--             else   
+--              
+--                  vgaRed <= "0000";
+-- 
+--                 vgaGreen <= "0000";
+--
+--                  vgaBlue <= "0000";    
+--             
+--            end if;
+--            
+--        elsif  hz >= xpos3  and hz < xpos3 +8 then
+--             if letters(definedcharacters- xdata3)(11-vt+ypos)(7-hz+xpos3)= '1'  then
+--                 vgaRed <= "1111";
+--
+--                 vgaGreen <= "1111";
+--
+--                 vgaBlue <= "1111";
+--              
+--             else   
+--              
+--                  vgaRed <= "0000";
+-- 
+--                 vgaGreen <= "0000";
+--
+--                  vgaBlue <= "0000";    
+--             
+--            end if;    
+--            
+--        elsif  hz >= xpos4  and hz < xpos4 +8 then
+--             if letters(definedcharacters- xdata4)(11-vt+ypos)(7-hz+xpos4)= '1'  then
+--                 vgaRed <= "1111";
+--
+--                 vgaGreen <= "1111";
+--
+--                 vgaBlue <= "1111";
+--              
+--             else   
+--              
+--                  vgaRed <= "0000";
+-- 
+--                 vgaGreen <= "0000";
+--
+--                  vgaBlue <= "0000";    
+--             
+--            end if;    
+--            
+--        elsif  hz >= xpos5  and hz < xpos5 +8 then
+--             if letters(definedcharacters- ydata1)(11-vt+ypos)(7-hz+xpos5)= '1'  then
+--                 vgaRed <= "1111";
+--
+--                 vgaGreen <= "1111";
+--
+--                 vgaBlue <= "1111";
+--              
+--             else   
+--              
+--                  vgaRed <= "0000";
+-- 
+--                 vgaGreen <= "0000";
+--
+--                  vgaBlue <= "0000";    
+--             
+--            end if;               
+--            
+--        elsif  hz >= xpos6  and hz < xpos6 +8 then
+--             if letters(definedcharacters- ydata2)(11-vt+ypos)(7-hz+xpos6)= '1'  then
+--                 vgaRed <= "1111";
+--
+--                 vgaGreen <= "1111";
+--
+--                 vgaBlue <= "1111";
+--              
+--             else   
+--              
+--                  vgaRed <= "0000";
+-- 
+--                 vgaGreen <= "0000";
+--
+--                  vgaBlue <= "0000";    
+--             
+--            end if;                     
+--        elsif  hz >= xpos7  and hz < xpos7 +8 then
+--             if letters(definedcharacters- ydata3)(11-vt+ypos)(7-hz+xpos7)= '1'  then
+--                 vgaRed <= "1111";
+--
+--                 vgaGreen <= "1111";
+--
+--                 vgaBlue <= "1111";
+--              
+--             else   
+--              
+--                  vgaRed <= "0000";
+-- 
+--                 vgaGreen <= "0000";
+--
+--                  vgaBlue <= "0000";    
+--             
+--            end if;                    
+--        elsif  hz >= xpos8  and hz < xpos8 +8 then
+--             if letters(definedcharacters- ydata4)(11-vt+ypos)(7-hz+xpos8)= '1'  then
+--                 vgaRed <= "1111";
+--
+--                 vgaGreen <= "1111";
+--
+--                 vgaBlue <= "1111";
+--              
+--             else   
+--              
+--                  vgaRed <= "0000";
+-- 
+--                 vgaGreen <= "0000";
+--
+--                  vgaBlue <= "0000";    
+--             
+--            end if;                
+--        else
+--            vgaRed <= "0000";
+--
+--            vgaGreen <= "0000";
+--
+--            vgaBlue <= "0000";
+--            
+--        end if;   
+--    end if;
+--end if;
+--end process;
+
+
+--VGA Controller code
+
+process(clock)
+
+begin
+
+if (rising_edge(clock)) then
+
+    if (hz > hdisp + horizontalfrontporch + horizontalbackporch + hsp - 1) then
+
+        vt <= vt + 1;
+
+        hz <= 0;
+
+    else
+
+        hz <= hz + 1;
+
+    end if;
+
+    if (vt > vdisp + verticalfrontporch + verticalbackporch + vsp - 1) then
+
+        vt <= 0;
+
+    end if;
+
+end if;
+
+end process;
+
+ 
+
+process(hz, clock)
+
+begin
+
+if (hz > 0 and hz < hdisp) then
+
+    Hsync <= '1';
+
+    h_disp <= true;
+
+elsif (hz > hdisp and hz < hdisp + horizontalfrontporch) then
+
+    Hsync <= '1';
+
+    h_disp <= false;
+
+elsif (hz > hdisp + horizontalfrontporch and hz < hdisp + horizontalfrontporch + hsp) then
+
+    Hsync <= '0';
+
+    h_disp <= false;
+
+elsif (hz > hdisp + horizontalfrontporch + hsp) then
+
+    Hsync <= '1';
+
+    h_disp <= false;
+
+else
+
+    Hsync <= '0';
+
+end if;
+
+end process;
+
+ 
+
+process(vt, clock)
+
+begin
+
+if (vt > 0 and vt < vdisp) then
+
+    Vsync <= '0';
+
+    v_disp <= true;
+
+elsif (vt > vdisp and vt < vdisp + verticalfrontporch) then
+
+    Vsync <= '0';
+
+    v_disp <= false;
+
+elsif (vt > vdisp + verticalfrontporch and vt < vdisp + verticalfrontporch + vsp) then
+
+    Vsync <= '1';
+
+    v_disp <= false;
+
+else
+
+    Vsync <= '0';
+
+end if;
+
+end process;
+
+end behavioral;
+
+ 
+
+        --white rectangle
+
+--        if (hz < white_h + 500 and hz > white_h and vt < white_v + 50 and vt > white_v) then
+--
+--            vgaRed <= "1111";
+--
+--            vgaGreen <= "1111";
+--
+--            vgaBlue <= "1111";
+--
+--        --orange circle
+--
+--        elsif (((hz-(orange_h)) * (hz-(orange_h))) + ((vt-(orange_v)) * (vt-(orange_v)))) < 1250 then
+--
+--            vgaRed <= "1111";
+--
+--            vgaGreen <= "1001";
+--
+--            vgaBlue <= "0011";
+--
+--        --light blue circle
+--
+--        elsif (((hz-(blue_h)) * (hz-(blue_h))) + ((vt-(blue_v)) * (vt-(blue_v)))) < 1000 then
+--
+--            vgaRed <= "0011";
+--
+--            vgaGreen <= "1001";
+--
+--            vgaBlue <= "1111";
+--
+--        --purple circle
+--
+--        elsif (((hz-(purple_h)) * (hz-(purple_h))) + ((vt-(purple_v)) * (vt-(purple_v)))) < 750 then
+--
+--            vgaRed <= "1010";
+--
+--            vgaGreen <= "0000";
+--
+--            vgaBlue <= "1010";
+--
+--        else
+--
+--            vgaRed <= "0000";
+--
+--            vgaGreen <= "0000";
+--
+--            vgaBlue <= "0000";
+--
+--        end if;
+
+ 
