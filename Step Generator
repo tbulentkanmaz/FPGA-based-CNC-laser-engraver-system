@@ -1,0 +1,53 @@
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity stepgenerator is
+    Port ( CLK : in STD_LOGIC;
+
+           stepout : out STD_LOGIC);
+
+
+end stepgenerator;
+
+architecture Behavioral of stepgenerator is
+signal temp: STD_LOGIC:= '0';
+signal count : integer:=0;
+
+begin
+stepout <= temp;
+
+
+process(clk)
+begin 
+if rising_edge(CLK) then
+    if count < 300000 then 
+    temp <= '0';
+    count <= count +1;
+
+
+    elsif   count >= 300000 and  count <= 300050 then
+    temp <= '1'; 
+    count <= count +1;
+
+
+    elsif count > 300050 then 
+    temp <= '0';
+    count <= 0;
+    else 
+
+
+    count <= count +1;
+    temp <= '0';
+
+    end if;
+end if;
+
+
+end process;
+
+
+
+
+end Behavioral;
