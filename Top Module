@@ -1,0 +1,313 @@
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx leaf cells in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity top is
+ Port (
+ sens1:in std_logic;
+ sens2:in std_logic;
+ sens3:in std_logic;
+ sens4:in std_logic;
+ resetsecurity: in std_logic;
+ laserout: out std_logic;
+ buzzer: out std_logic;
+ CLK: in Std_logic;
+ down: in Std_logic;
+ up: in Std_logic;
+ right: in Std_logic;
+ left: in Std_logic;
+ laserin: in Std_logic;
+ stepcounterx: in std_logic;
+ stepcountery: in std_logic;
+
+reset_count: in std_logic;
+
+ outdir1: out Std_logic;
+ step1: out Std_logic;
+ outdir2: out Std_logic;
+ step2: out Std_logic;
+ vgaRed : out std_logic_vector (3 downto 0);
+ vgaGreen : out std_logic_vector (3 downto 0);
+ vgaBlue : out std_logic_vector (3 downto 0);
+ Hsync : out std_logic;
+ Vsync : out std_logic
+ --stepsize: out Std_logic_vector(2 downto 0)
+   );
+end top;
+
+architecture Behavioral of top is
+
+signal x1 : integer := 10;
+signal x2 : integer := 0;
+signal x3 : integer := 0;
+signal x4 : integer := 0;
+signal y1 : integer := 11;
+signal y2 : integer := 0;
+signal y3 : integer := 0;
+signal y4 : integer := 0;
+
+signal countx: integer :=000;
+signal county: integer :=000;
+
+
+signal internalcountx: integer:= 000;
+signal internalcounty: integer:= 000;
+
+
+signal security: std_logic := '1';
+signal dividedclk: std_logic := '0' ;
+signal stepclk: std_logic := '0' ;
+signal enable1: std_logic := '0';
+signal enable2: std_logic := '0';
+signal red_screen: std_logic := '0';
+
+component vga is
+Port( clock : in std_logic;
+
+    right:in std_logic;
+    
+   left: in std_logic;
+   
+   up: in std_logic;
+            
+   down: in std_logic;
+   
+   red_screen: in std_logic;
+    
+      vgaRed : out std_logic_vector (3 downto 0);
+
+       vgaGreen : out std_logic_vector (3 downto 0);
+
+       vgaBlue : out std_logic_vector (3 downto 0);
+
+       Hsync : out std_logic;
+
+       Vsync : out std_logic;
+       
+        xdata1: in integer;
+          
+         xdata2: in integer;
+          
+          xdata3: in integer;
+          
+          xdata4: in integer;
+          
+          ydata1: in integer;
+          
+          ydata2: in integer;
+          
+          ydata3: in integer;
+
+          ydata4: in integer);
+
+end component;
+
+component clkdivider is
+    Port ( CLK : in STD_LOGIC;
+           CLKout : out STD_LOGIC);
+end component;
+
+
+
+
+
+component stepgenerator is
+    Port ( CLK : in STD_LOGIC;
+           stepout : out STD_LOGIC);
+end component;
+
+
+
+begin
+
+ahmet: stepgenerator port map ( CLK => CLK, stepout => stepclk);
+step1 <= enable1 and stepclk;
+step2 <= enable2 and stepclk;
+mehmet: clkdivider port map ( CLK => CLK, CLKout => dividedclk);
+hasim: vga port map ( xdata1 => x1 ,xdata2 => x2 ,xdata3 => x3 ,xdata4 => x4 ,red_screen => red_screen, ydata1 => y1 ,ydata2 => y2 ,
+ydata3 => y3 ,ydata4 => y4 ,right => right ,left => left,up => up, down => down, clock => clk, vgaRed => vgaRed, vgaBlue => vgaBlue, 
+vgaGreen => vgaGreen, Hsync => Hsync, Vsync=> Vsync);
+
+
+
+process(sens1,sens2,sens3,sens4,resetsecurity)
+begin
+if (sens1 = '0' or sens2 = '0' or sens3 = '0' or sens4 = '0' ) then
+security <= '0';
+end if;--
+if  resetsecurity = '1' then
+security <= '1';
+--else
+--security <= '1';
+end if;
+end process;
+
+
+
+process (security)
+begin
+if security = '0' then
+laserout <= '0';
+buzzer <= '1';
+red_screen <='1' ;
+
+else
+red_screen <= '0';
+laserout <= laserin;
+buzzer <= '0';
+
+end if;
+end process;
+
+
+
+process(dividedCLK, reset_count) 
+begin
+if rising_edge( dividedCLK) then 
+
+    if( up = '0' and down = '1') then
+    outdir1 <= '0';
+    enable1 <= '1';
+     if county > 0 then
+        county <= county -1 ;
+        
+    else 
+        county <= county;
+    end if;   
+--    step <= stepclk;
+    
+    elsif (up = '1' and down = '0') then 
+    outdir1 <= '1';
+    enable1 <= '1';
+    if county >= 0 then
+        county <= county +1 ;
+    elsif  county < 0 then
+        county <= 0 ;   
+        
+    else 
+        county <= county;
+    end if;    
+ --   step <= stepclk;
+    elsif (up = '0' and down = '0' and reset_count='1') then 
+       
+                  county <= 000;
+        
+ 
+    else
+    outdir1 <= '0';
+    enable1 <= '0';
+--    step <= '0';
+    end if;
+end if;
+
+
+    
+if rising_edge( dividedCLK) then 
+    
+    if( right = '0' and left = '1') then
+    outdir2 <= '0';
+    enable2 <= '1';
+     if countx > 0 then
+        countx <= countx -1 ;
+        
+    else 
+        countx <= countx;
+    end if;   
+    
+    
+
+--    step <= stepclk;
+    
+    elsif (right = '1' and left = '0') then 
+    outdir2 <= '1';
+    enable2 <= '1';
+     if countx >= 0 then
+        countx <= countx +1 ;
+     elsif countx < 0 then   
+       countx <= 0;
+
+     else 
+        countx <= countx;
+        
+    end if;      
+        
+    elsif (right = '0' and left = '0' and reset_count='1') then 
+        
+                   countx <= 000;
+        
+   
+   
+    
+    
+ --   step <= stepclk;
+    else
+    outdir2 <= '0';
+    enable2 <= '0';
+--    step <= '0';
+    end if;  
+end if;
+
+end process;
+
+
+process (countx)
+begin
+
+x2 <= countx/100;
+x3 <= (countx-(x2*100))/10;
+x4 <= (countx-(x2*100)-(x3*10));
+end process;
+
+process (county)
+begin
+
+
+y2 <= county/100;
+y3 <= (county-(y2*100))/10;
+y4 <= (county-(y2*100)-(y3*10));
+end process;
+
+
+
+--process(stepcounterx) begin
+--
+--if stepcounterx'event and stepcounterx='1' then
+-- countx <=countx +1;
+-- 
+--end if;
+--end process;
+--
+--
+--process(stepcountery) 
+--begin
+--
+--if stepcountery'event and stepcountery='1' then
+--    
+--    county <= county+1;
+--
+--elsif stepcountery'event and stepcountery='0' then 
+--        county <= county-1;
+--else        
+--    county <= county;
+--
+--end if;
+--end process;
+--
+--
+
+
+
+
+
+
+end Behavioral;
