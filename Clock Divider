@@ -1,0 +1,41 @@
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity clkDivider is
+    Port ( CLK : in STD_LOGIC;
+    
+           CLKout : out STD_LOGIC);
+           
+end ClkDivider;
+
+architecture Behavioral of ClkDivider is
+signal temp: STD_LOGIC:= '0';
+signal count : integer:=0;
+
+begin
+Clkout <= temp;
+
+process(clk)
+begin 
+if rising_edge(CLK) then
+
+
+    if count = 2083330 then
+    temp <= not temp; 
+    count <= 0;
+    else 
+    
+    
+    count <= count +1;
+    end if;
+    
+    
+end if;
+end process;
+
+
+
+
+end Behavioral;
